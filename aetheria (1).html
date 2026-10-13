@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="ko" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AETHERIA - 몽환적인 인터랙티브 세레나데</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Pretendard Font -->
+    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Pretendard', '-apple-system', 'BlinkMacSystemFont', 'system-ui', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        * {
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            background-color: #02040a;
+            overflow: hidden;
+            touch-action: none;
+            font-family: 'Pretendard', sans-serif;
+        }
+
+        .glass-panel {
+            background: rgba(8, 12, 24, 0.72);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            box-shadow: 0 16px 40px 0 rgba(0, 0, 0, 0.6);
+        }
+
+        .glass-btn {
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            transition: all 0.2s ease;
+        }
+
+        .glass-btn:hover {
+            background: rgba(255, 255, 255, 0.22);
+            border-color: rgba(255, 255, 255, 0.35);
+            transform: translateY(-1px);
+        }
+
+        .glass-btn:active {
+            transform: translateY(1px);
+        }
+
+        input[type=range] {
+            -webkit-appearance: none;
+            background: rgba(255, 255, 255, 0.18);
+            height: 5px;
+            border-radius: 3px;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #ffffff;
+            cursor: pointer;
+            box-shadow: 0 0 12px rgba(255, 255, 255, 0.9);
+            transition: transform 0.15s ease;
+        }
+
+        input[type=range]::-webkit-slider-thumb:hover {
+            transform: scale(1.3);
+        }
+    </style>
+</head>
+<body class="h-full w-full text-slate-100 antialiased overflow-hidden select-none">
+
+    <!-- Background Canvas -->
+    <div class="fixed inset-0 z-0">
+        <canvas id="canvas" class="w-full h-full block cursor-crosshair"></canvas>
+    </div>
+
+    <!-- Glowing Background Ambient Spheres -->
+    <div class="pointer-events-none fixed top-1/4 left-1/4 w-[500px] h-[500px] bg-cyan-500/10 rounded-full blur-[160px]"></div>
+    <div class="pointer-events-none fixed bottom-1/4 right-1/4 w-[500px] h-[500px] bg-purple-500/10 rounded-full blur-[160px]"></div>
+
+    <div class="relative z-10 flex flex-col justify-between h-full p-4 md:p-6 pointer-events-none">
+
+        <!-- Top Right Action Buttons -->
+        <div class="flex justify-end space-x-2 pointer-events-auto">
+            <button id="soundToggleBtn" class="glass-btn w-11 h-11 rounded-full flex items-center justify-center text-cyan-300 border-cyan-400/60 shadow-lg" title="음악 켜기/끄기">
+                <i id="soundIcon" class="fa-solid fa-music text-base animate-pulse"></i>
+            </button>
+
+            <button id="panelToggleBtn" class="glass-btn w-11 h-11 rounded-full flex items-center justify-center text-white/90 hover:text-white" title="설정">
+                <i class="fa-solid fa-sliders text-base"></i>
+            </button>
+        </div>
+
+        <!-- Center Initial Interaction Banner -->
+        <div id="interactionHint" class="self-center text-center transition-opacity duration-700 pointer-events-none my-auto">
+            <div class="glass-panel px-7 py-5 rounded-3xl inline-flex flex-col items-center space-y-2 border border-white/15 shadow-2xl">
+                <div class="w-10 h-10 rounded-full bg-cyan-400/20 border border-cyan-300/40 flex items-center justify-center text-sm text-cyan-300 animate-bounce">
+                    <i class="fa-solid fa-sparkles"></i>
+                </div>
+                <p class="text-sm text-white font-semibold tracking-wide">화면을 터치하거나 마우스를 움직여보세요</p>
+                <p class="text-xs text-white/60">4,000개의 섬세한 입자와 몽환적인 음악이 조화롭게 반응합니다</p>
+            </div>
+        </div>
+
+        <!-- Settings Drawer -->
+        <div id="controlPanel" class="pointer-events-auto fixed bottom-5 right-5 w-80 glass-panel rounded-3xl p-5 transition-all duration-300 transform translate-y-full opacity-0 flex flex-col space-y-4 border border-white/15 shadow-2xl z-20">
+            <div class="flex justify-between items-center border-b border-white/10 pb-3">
+                <h3 class="text-xs font-semibold tracking-wider text-white flex items-center">
+                    <i class="fa-solid fa-sliders text-cyan-400 mr-2"></i> 설정
+                </h3>
+                <button id="closePanelBtn" class="text-white/40 hover:text-white text-xs">
+                    <i class="fa-solid fa-xmark text-base"></i>
+                </button>
+            </div>
+
+            <!-- Theme Selector -->
+            <div class="space-y-2">
+                <label class="text-[11px] font-semibold text-cyan-400 uppercase tracking-wider block">테마 색상</label>
+                <div class="grid grid-cols-2 gap-2" id="paletteSelector"></div>
+            </div>
+
+            <!-- Motion Mode Selector -->
+            <div class="space-y-2 pt-1">
+                <label class="text-[11px] font-semibold text-cyan-400 uppercase tracking-wider block">입자 움직임</label>
+                <div class="grid grid-cols-2 gap-2" id="modeSelector">
+                    <button data-mode="flow" class="mode-btn glass-btn py-2 rounded-2xl text-xs active-mode text-cyan-300 border-cyan-400/50">흐름</button>
+                    <button data-mode="vortex" class="mode-btn glass-btn py-2 rounded-2xl text-xs text-white/60">소용돌이</button>
+                    <button data-mode="wave" class="mode-btn glass-btn py-2 rounded-2xl text-xs text-white/60">파도</button>
+                    <button data-mode="cosmic" class="mode-btn glass-btn py-2 rounded-2xl text-xs text-white/60">우주</button>
+                </div>
+            </div>
+
+            <!-- Particle Size Slider -->
+            <div class="space-y-1 pt-1">
+                <div class="flex justify-between text-[11px]">
+                    <span class="text-white/70">입자 크기</span>
+                    <span id="sizeVal" class="text-cyan-400 font-mono">2.5px</span>
+                </div>
+                <input type="range" id="sizeSlider" min="1.0" max="5.0" step="0.2" value="2.5" class="w-full">
+            </div>
+
+            <!-- Velocity Slider -->
+            <div class="space-y-1">
+                <div class="flex justify-between text-[11px]">
+                    <span class="text-white/70">이동 속도</span>
+                    <span id="speedVal" class="text-cyan-400 font-mono">1.4x</span>
+                </div>
+                <input type="range" id="speedSlider" min="0.6" max="2.6" step="0.1" value="1.4" class="w-full">
+            </div>
+
+            <!-- Repulsion Radius Slider -->
+            <div class="space-y-1">
+                <div class="flex justify-between text-[11px]">
+                    <span class="text-white/70">밀어내는 범위</span>
+                    <span id="repulsionVal" class="text-cyan-400 font-mono">100px</span>
+                </div>
+                <input type="range" id="repulsionSlider" min="40" max="250" step="10" value="100" class="w-full">
+            </div>
+
+            <!-- Volume Slider -->
+            <div class="space-y-1 border-t border-white/10 pt-3">
+                <div class="flex justify-between text-[11px]">
+                    <span class="text-white/70">음악 크기</span>
+                    <span id="volumeVal" class="text-cyan-400 font-mono">70%</span>
+                </div>
+                <input type="range" id="volumeSlider" min="0" max="100" value="70" class="w-full">
+            </div>
+        </div>
+
+        <div class="w-full"></div>
+    </div>
+
+    <script>
+        class DreamyArpeggioSynth {
+            constructor() {
+                this.ctx = null;
+                this.initialized = false;
+                this.isPlaying = false;
+                this.volume = 0.7;
+                this.arpTimer = null;
+
+                // Pentatonic Dream Chord Progression (Cmaj9, Am9, Fmaj7, G6/9)
+                this.chords = [
+                    [130.81, 164.81, 196.00, 246.94, 293.66, 392.00], 
+                    [110.00, 146.83, 164.81, 220.00, 261.63, 329.63], 
+                    [87.31,  130.81, 164.81, 174.61, 220.00, 261.63], 
+                    [98.00,  146.83, 196.00, 246.94, 293.66, 392.00]  
+                ];
+                this.currentChordIndex = 0;
+            }
+
+            init() {
+                if (this.initialized) return;
+                try {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    this.ctx = new AudioContext();
+
+                    this.masterGain = this.ctx.createGain();
+                    this.masterGain.gain.setValueAtTime(this.volume * 0.15, this.ctx.currentTime);
+
+                    // Lowpass Filter for Warm Analog Ambient Sound
+                    this.filter = this.ctx.createBiquadFilter();
+                    this.filter.type = 'lowpass';
+                    this.filter.frequency.setValueAtTime(950, this.ctx.currentTime);
+
+                    // Delay Effect for Space Echo
+                    this.delayNode = this.ctx.createDelay();
+                    this.delayNode.delayTime.setValueAtTime(0.35, this.ctx.currentTime);
+
+                    this.feedbackGain = this.ctx.createGain();
+                    this.feedbackGain.gain.setValueAtTime(0.4, this.ctx.currentTime);
+
+                    this.delayNode.connect(this.feedbackGain);
+                    this.feedbackGain.connect(this.delayNode);
+
+                    this.filter.connect(this.masterGain);
+                    this.filter.connect(this.delayNode);
+                    this.delayNode.connect(this.masterGain);
+                    this.masterGain.connect(this.ctx.destination);
+
+                    this.initialized = true;
+                } catch (e) {
+                    console.error("Audio Context Error", e);
+                }
+            }
+
+            start() {
+                if (!this.initialized) this.init();
+                if (!this.ctx) return;
+
+                if (this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+
+                this.isPlaying = true;
+                this.startArpLoop();
+            }
+
+            stop() {
+                this.isPlaying = false;
+                if (this.arpTimer) clearInterval(this.arpTimer);
+            }
+
+            setVolume(val) {
+                this.volume = val;
+                if (this.masterGain && this.ctx) {
+                    this.masterGain.gain.setTargetAtTime(this.volume * 0.15, this.ctx.currentTime, 0.05);
+                }
+            }
+
+            startArpLoop() {
+                if (this.arpTimer) clearInterval(this.arpTimer);
+
+                let step = 0;
+                this.arpTimer = setInterval(() => {
+                    if (!this.isPlaying) return;
+
+                    if (step % 16 === 0) {
+                        this.currentChordIndex = (this.currentChordIndex + 1) % this.chords.length;
+                    }
+
+                    const chord = this.chords[this.currentChordIndex];
+                    const freq = chord[step % chord.length] * (step % 2 === 0 ? 1 : 2);
+                    
+                    this.playPluckNote(freq);
+                    step++;
+                }, 240);
+            }
+
+            playPluckNote(freq) {
+                if (!this.ctx || this.ctx.state !== 'running') return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+
+                gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + 1.2);
+
+                osc.connect(gain);
+                gain.connect(this.filter);
+
+                osc.start();
+                osc.stop(this.ctx.currentTime + 1.25);
+            }
+        }
+
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        const THEMES = [
+            { id: 'aurora', name: '오로라', colors: ['#00f2fe', '#4facfe', '#7f00ff', '#e100ff', '#00e5ff'], bg: '#02040a' },
+            { id: 'ocean', name: '바다', colors: ['#00c6ff', '#0072ff', '#05ffa1', '#00b894', '#70e0d0'], bg: '#010814' },
+            { id: 'sunset', name: '노을', colors: ['#ff4e50', '#f9d423', '#ff007f', '#e84118', '#ff9f43'], bg: '#0a0306' },
+            { id: 'neon', name: '네온', colors: ['#ffe066', '#f72585', '#7209b7', '#4cc9f0', '#00f5d4'], bg: '#070312' }
+        ];
+
+        let config = {
+            theme: THEMES[0],
+            mode: 'flow',
+            particleCount: 4000,
+            speed: 1.4,
+            baseRadius: 2.5,
+            mouseRadius: 100,
+            connectDistance: 65
+        };
+
+        const mouse = {
+            x: -1000,
+            y: -1000,
+            targetX: -1000,
+            targetY: -1000,
+            active: false
+        };
+
+        let particles = [];
+        let width = 0;
+        let height = 0;
+        let frameCount = 0;
+
+        const synth = new DreamyArpeggioSynth();
+
+        class Particle {
+            constructor() {
+                this.reset();
+            }
+
+            reset() {
+                this.x = Math.random() * width;
+                this.y = Math.random() * height;
+                this.vx = (Math.random() - 0.5) * 1.5;
+                this.vy = (Math.random() - 0.5) * 1.5;
+                this.radius = Math.random() * 2.0 + (config.baseRadius - 1.0);
+                this.color = config.theme.colors[Math.floor(Math.random() * config.theme.colors.length)];
+                this.alpha = Math.random() * 0.7 + 0.3;
+                this.life = Math.random() * 1000;
+            }
+
+            update() {
+                this.life += 0.015 * config.speed;
+
+                if (config.mode === 'flow') {
+                    const angle = Math.sin(this.x * 0.0025 + frameCount * 0.008) * Math.cos(this.y * 0.0025 + frameCount * 0.008) * Math.PI * 2;
+                    this.vx += Math.cos(angle) * 0.08 * config.speed;
+                    this.vy += Math.sin(angle) * 0.08 * config.speed;
+                } else if (config.mode === 'vortex') {
+                    const dx = this.x - width / 2;
+                    const dy = this.y - height / 2;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    const angle = Math.atan2(dy, dx) + Math.PI / 2;
+                    
+                    this.vx += Math.cos(angle) * (200 / (dist + 50)) * 0.1 * config.speed;
+                    this.vy += Math.sin(angle) * (200 / (dist + 50)) * 0.1 * config.speed;
+                } else if (config.mode === 'wave') {
+                    this.vx += Math.sin(this.y * 0.008 + frameCount * 0.02) * 0.08 * config.speed;
+                    this.vy += Math.cos(this.x * 0.008 + frameCount * 0.02) * 0.08 * config.speed;
+                } else if (config.mode === 'cosmic') {
+                    const sinVal = Math.sin(this.life * 0.5);
+                    this.vx += Math.cos(this.life) * sinVal * 0.12 * config.speed;
+                    this.vy += Math.sin(this.life) * sinVal * 0.12 * config.speed;
+                }
+
+                if (mouse.active) {
+                    const dx = this.x - mouse.x;
+                    const dy = this.y - mouse.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+
+                    if (dist < config.mouseRadius && dist > 0.1) {
+                        const force = (1 - dist / config.mouseRadius) * 3.5;
+                        const angle = Math.atan2(dy, dx);
+
+                        this.vx += Math.cos(angle) * force;
+                        this.vy += Math.sin(angle) * force;
+                    }
+                }
+
+                this.x += this.vx * (config.speed * 0.6);
+                this.y += this.vy * (config.speed * 0.6);
+                this.vx *= 0.90;
+                this.vy *= 0.90;
+
+                if (this.x < -20) this.x = width + 20;
+                if (this.x > width + 20) this.x = -20;
+                if (this.y < -20) this.y = height + 20;
+                if (this.y > height + 20) this.y = -20;
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.globalAlpha = this.alpha;
+                ctx.fill();
+            }
+        }
+
+        function initCanvas() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+            particles = [];
+            for (let i = 0; i < config.particleCount; i++) {
+                particles.push(new Particle());
+            }
+        }
+
+        function render() {
+            frameCount++;
+
+            mouse.x += (mouse.targetX - mouse.x) * 0.25;
+            mouse.y += (mouse.targetY - mouse.y) * 0.25;
+
+            ctx.fillStyle = config.theme.bg;
+            ctx.globalAlpha = 0.32;
+            ctx.fillRect(0, 0, width, height);
+            ctx.globalAlpha = 1.0;
+
+            ctx.lineWidth = 0.5;
+            for (let i = 0; i < particles.length; i += 3) {
+                const p1 = particles[i];
+                p1.update();
+                p1.draw();
+
+                for (let j = i + 1; j < i + 6; j++) {
+                    if (j >= particles.length) break;
+                    const p2 = particles[j];
+                    const dx = p1.x - p2.x;
+                    const dy = p1.y - p2.y;
+                    const distSq = dx * dx + dy * dy;
+
+                    if (distSq < config.connectDistance * config.connectDistance) {
+                        ctx.beginPath();
+                        ctx.moveTo(p1.x, p1.y);
+                        ctx.lineTo(p2.x, p2.y);
+                        ctx.strokeStyle = p1.color;
+                        ctx.globalAlpha = (1 - Math.sqrt(distSq) / config.connectDistance) * 0.18;
+                        ctx.stroke();
+                    }
+                }
+            }
+
+            for (let i = 0; i < particles.length; i++) {
+                if (i % 3 !== 0) {
+                    particles[i].update();
+                    particles[i].draw();
+                }
+            }
+
+            requestAnimationFrame(render);
+        }
+
+        function initUI() {
+            const paletteSelector = document.getElementById('paletteSelector');
+            THEMES.forEach((t, index) => {
+                const btn = document.createElement('button');
+                btn.className = `glass-btn py-2 px-3 rounded-2xl text-xs flex items-center space-x-2 transition-all ${index === 0 ? 'ring-2 ring-cyan-400 border-transparent' : ''}`;
+                btn.innerHTML = `
+                    <span class="w-3.5 h-3.5 rounded-full flex-shrink-0" style="background: linear-gradient(135deg, ${t.colors[0]}, ${t.colors[1]})"></span>
+                    <span class="text-xs text-white/90 font-medium">${t.name}</span>
+                `;
+                btn.addEventListener('click', () => {
+                    config.theme = t;
+                    document.querySelectorAll('#paletteSelector button').forEach(b => b.classList.remove('ring-2', 'ring-cyan-400'));
+                    btn.classList.add('ring-2', 'ring-cyan-400');
+                    particles.forEach(pt => pt.color = t.colors[Math.floor(Math.random() * t.colors.length)]);
+                });
+                paletteSelector.appendChild(btn);
+            });
+
+            const controlPanel = document.getElementById('controlPanel');
+            const panelToggleBtn = document.getElementById('panelToggleBtn');
+            const closePanelBtn = document.getElementById('closePanelBtn');
+
+            function togglePanel() {
+                const isOpen = controlPanel.classList.contains('translate-y-0');
+                if (isOpen) {
+                    controlPanel.classList.remove('translate-y-0', 'opacity-100');
+                    controlPanel.classList.add('translate-y-full', 'opacity-0');
+                } else {
+                    controlPanel.classList.remove('translate-y-full', 'opacity-0');
+                    controlPanel.classList.add('translate-y-0', 'opacity-100');
+                }
+            }
+
+            panelToggleBtn.addEventListener('click', togglePanel);
+            closePanelBtn.addEventListener('click', togglePanel);
+
+            document.querySelectorAll('.mode-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.mode-btn').forEach(b => {
+                        b.classList.remove('active-mode', 'text-cyan-300', 'border-cyan-400/50');
+                        b.classList.add('text-white/60');
+                    });
+                    btn.classList.add('active-mode', 'text-cyan-300', 'border-cyan-400/50');
+                    btn.classList.remove('text-white/60');
+                    config.mode = btn.getAttribute('data-mode');
+                });
+            });
+
+            document.getElementById('sizeSlider').addEventListener('input', (e) => {
+                config.baseRadius = parseFloat(e.target.value);
+                document.getElementById('sizeVal').innerText = `${config.baseRadius.toFixed(1)}px`;
+                particles.forEach(p => p.radius = Math.random() * 2.0 + (config.baseRadius - 1.0));
+            });
+
+            document.getElementById('speedSlider').addEventListener('input', (e) => {
+                config.speed = parseFloat(e.target.value);
+                document.getElementById('speedVal').innerText = `${config.speed.toFixed(1)}x`;
+            });
+
+            document.getElementById('repulsionSlider').addEventListener('input', (e) => {
+                config.mouseRadius = parseInt(e.target.value);
+                document.getElementById('repulsionVal').innerText = `${config.mouseRadius}px`;
+            });
+
+            document.getElementById('volumeSlider').addEventListener('input', (e) => {
+                const val = parseInt(e.target.value);
+                document.getElementById('volumeVal').innerText = `${val}%`;
+                synth.setVolume(val / 100);
+            });
+
+            const soundToggleBtn = document.getElementById('soundToggleBtn');
+            const soundIcon = document.getElementById('soundIcon');
+
+            function updateAudioIcon() {
+                if (synth.isPlaying) {
+                    soundIcon.className = 'fa-solid fa-music text-cyan-300 animate-pulse';
+                    soundToggleBtn.classList.add('border-cyan-400/60');
+                } else {
+                    soundIcon.className = 'fa-solid fa-volume-xmark text-white/50';
+                    soundToggleBtn.classList.remove('border-cyan-400/60');
+                }
+            }
+
+            soundToggleBtn.addEventListener('click', () => {
+                if (!synth.isPlaying) {
+                    synth.start();
+                } else {
+                    synth.stop();
+                }
+                updateAudioIcon();
+            });
+
+            const hint = document.getElementById('interactionHint');
+            let initialInteraction = false;
+
+            function tryStartAudio() {
+                if (!synth.isPlaying) {
+                    synth.start();
+                    updateAudioIcon();
+                }
+                if (!initialInteraction) {
+                    initialInteraction = true;
+                    hint.style.opacity = '0';
+                }
+            }
+
+            synth.start();
+            updateAudioIcon();
+
+            function handlePointerMove(e) {
+                mouse.active = true;
+                mouse.targetX = e.clientX || (e.touches && e.touches[0].clientX);
+                mouse.targetY = e.clientY || (e.touches && e.touches[0].clientY);
+                tryStartAudio();
+            }
+
+            function handlePointerLeave() {
+                mouse.active = false;
+            }
+
+            window.addEventListener('mousemove', handlePointerMove, { capture: true, passive: true });
+            window.addEventListener('mouseleave', handlePointerLeave);
+            window.addEventListener('click', tryStartAudio);
+            window.addEventListener('keydown', tryStartAudio);
+            window.addEventListener('touchstart', (e) => { 
+                tryStartAudio();
+                if (e.touches.length > 0) handlePointerMove(e.touches[0]); 
+            }, { capture: true, passive: true });
+            window.addEventListener('touchmove', (e) => { 
+                if (e.touches.length > 0) handlePointerMove(e.touches[0]); 
+            }, { capture: true, passive: true });
+            window.addEventListener('touchend', handlePointerLeave);
+
+            window.addEventListener('resize', initCanvas);
+        }
+
+        window.onload = () => {
+            initCanvas();
+            initUI();
+            render();
+        };
+    </script>
+</body>
+</html>
